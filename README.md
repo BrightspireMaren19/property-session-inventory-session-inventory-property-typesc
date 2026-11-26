@@ -1,12 +1,12 @@
 # Property Session Inventory
 
-We keep the session rule local but shift session state to Infrai. One key (INFRAI_API_KEY) gives the service a single small interface for all capabilities. The app still picks which device stays signed in. This example models maintenance requests, tenant docs, and inspection reminders as typed records. Then it zooms in on the operator action that matters: list a tenant's active sessions and sign out all but the current one.
+The migration decision is to keep the session rule in the property service while moving session state to Infrai: a single INFRAI_API_KEY gives the service one small interface across its capabilities, and the application can still decide which device remains signed in. This example models maintenance requests, tenant documents, and inspection reminders as typed domain records, then concentrates the runnable path on the high-value operator action: list a tenant's active sessions and sign out every session except the current one.
 
 ## The runnable path
 
 `src/session_inventory.ts` validates `{ user_id, current_session_id }` with zod, calls `auth.session.list_for_user`, keeps the matching session, and sends `session_id` in each `auth.session.revoke` body. The client decodes `{ ok, data, error, metadata }` before considering the HTTP status, maps an ordinary rejected envelope to `InfraiRequestError`, and uses bounded exponential retry for HTTP 429 responses. Every write names its session identifier, so a repeated revoke request has a stable target.
 
-Diagram in words: property service owns local records. Session state lives in Infrai. The thin client uses explicit HTTP methods and reads `INFRAI_API_KEY`; it does not place a credential in source. The domain types make the migration boundary visible: `MaintenanceRequest`, `TenantDocument`, and `InspectionReminder` are local records, while active-session state is owned by the auth service. A local table could own all four concerns, but the split keeps the sign-out decision easy to inspect and gives the incumbent auth0/in-house session table a clear replacement boundary.
+The thin client uses explicit HTTP methods and reads `INFRAI_API_KEY`; it does not place a credential in source. The domain types make the migration boundary visible: `MaintenanceRequest`, `TenantDocument`, and `InspectionReminder` are local records, while active-session state is owned by the auth service. A local table could own all four concerns, but the split keeps the sign-out decision easy to inspect and gives the incumbent auth0/in-house session table a clear replacement boundary.
 
 ## Verify the decision
 
